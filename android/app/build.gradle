@@ -75,6 +75,10 @@ android {
     compileSdkVersion rootProject.ext.compileSdkVersion
 
     namespace "com.linkbridge.app"
+    
+    buildFeatures {
+        buildConfig true
+    }
     defaultConfig {
         applicationId "com.linkbridge.app"
         minSdkVersion rootProject.ext.minSdkVersion
