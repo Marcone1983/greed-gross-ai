@@ -29,8 +29,11 @@ jobs:
     - name: Install dependencies
       run: |
         npm install --legacy-peer-deps
+        
+    - name: Make gradlew executable
+      run: |
         cd android
-        ./gradlew clean
+        chmod +x gradlew
 
     - name: Create google-services.json
       run: |
