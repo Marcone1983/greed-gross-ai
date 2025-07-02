@@ -12,6 +12,11 @@ const defaultConfig = getDefaultConfig(__dirname);
 const config = {
   resolver: {
     assetExts: [...defaultConfig.resolver.assetExts, 'db', 'mp3', 'ttf', 'obj', 'png', 'jpg'],
+    blockList: [
+      /greedandgrossnextlevel\/.*/,
+      /greedandgrossnextlevel\.app\/.*/,
+      /greedandgrossnextlevel_backup_20250701_202656\/.*/,
+    ],
   },
   transformer: {
     getTransformOptions: async () => ({
