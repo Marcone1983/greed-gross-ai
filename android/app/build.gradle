@@ -67,7 +67,6 @@ dependencies {
     implementation 'com.google.android.gms:play-services-base:18.3.0'
     implementation 'com.google.firebase:firebase-messaging'
     // Dipendenze extra per React Native
-    implementation 'com.oblador:react-native-vector-icons:9.2.0'
     implementation 'com.reactnativecommunity:webview:13.7.0'
 }
 
