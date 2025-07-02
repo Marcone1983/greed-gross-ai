@@ -1,3 +1,4 @@
+import '@react-native-firebase/app'; // assicurati che venga chiamato prima di tutto il resto
 import React, { useState, useEffect, useRef, useContext } from 'react';
 import {
   View,
@@ -16,9 +17,7 @@ import {
   Platform
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-// import Icon from 'react-native-vector-icons/MaterialIcons';
-// Temporarily removed - causing build issues
-const Icon = ({ name, size, color }) => <Text style={{ fontSize: size, color }}>●</Text>;
+import Icon from 'react-native-vector-icons/MaterialIcons'; // CORRETTO: import reale
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
