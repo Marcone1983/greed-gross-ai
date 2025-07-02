@@ -71,4 +71,3 @@ dependencies {
     implementation 'com.reactnativecommunity:webview:13.7.0'
 }
 
-apply from: "../../node_modules/react-native/react.gradle"
