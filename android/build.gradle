@@ -56,14 +56,12 @@ subprojects {
         }
     }
     
-    // Fix Kotlin JVM target for react-native-gesture-handler
-    if (project.name == "react-native-gesture-handler") {
-        project.afterEvaluate {
-            if (project.hasProperty("kotlin")) {
-                tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile) {
-                    kotlinOptions {
-                        jvmTarget = "11"
-                    }
+    // Fix Kotlin JVM target for all projects
+    afterEvaluate {
+        tasks.matching { it.name.contains("Kotlin") && it.name.contains("compile") }.configureEach {
+            if (it.hasProperty("kotlinOptions")) {
+                it.kotlinOptions {
+                    jvmTarget = "11"
                 }
             }
         }
