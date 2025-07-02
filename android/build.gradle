@@ -43,6 +43,10 @@ subprojects {
                     targetCompatibility JavaVersion.VERSION_11
                 }
                 
+                // Enable buildConfig for libraries that need it
+                buildFeatures {
+                    buildConfig true
+                }
             }
         }
     }
