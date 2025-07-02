@@ -2435,6 +2435,7 @@ const ConversationHistoryScreen = () => {
 // ===========================
 const SplashScreen = ({ onAnimationComplete }) => {
   const [progress, setProgress] = useState(0);
+  const [imageError, setImageError] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
 
@@ -2469,7 +2470,7 @@ const SplashScreen = ({ onAnimationComplete }) => {
     }, 50);
 
     return () => clearInterval(progressInterval);
-  }, []);
+  }, [onAnimationComplete, fadeAnim, scaleAnim]);
 
   return (
     <View style={splashStyles.container}>
@@ -2484,11 +2485,18 @@ const SplashScreen = ({ onAnimationComplete }) => {
       >
         {/* Logo */}
         <View style={splashStyles.logo}>
-          <Image 
-            source={{uri: 'https://i.imgur.com/zkyXF7Y.png'}} 
-            style={splashStyles.logoImage}
-            resizeMode="contain"
-          />
+          {!imageError ? (
+            <Image 
+              source={{uri: 'https://i.imgur.com/zkyXF7Y.png'}} 
+              style={splashStyles.logoImage}
+              resizeMode="contain"
+              onError={() => setImageError(true)}
+            />
+          ) : (
+            <View style={[splashStyles.logoImage, {backgroundColor: '#2ECC40', justifyContent: 'center', alignItems: 'center'}]}>
+              <Text style={{fontSize: 60}}>🌿</Text>
+            </View>
+          )}
           <Text style={splashStyles.titleText}>GREED & GROSS</Text>
           <Text style={splashStyles.subtitleText}>Cannabis Breeding AI</Text>
         </View>
@@ -2620,6 +2628,15 @@ const TabNavigator = () => {
 // ===========================
 const App = () => {
   const [showSplash, setShowSplash] = useState(true);
+
+  useEffect(() => {
+    // Timeout di sicurezza - rimuove splash dopo 10 secondi
+    const timeout = setTimeout(() => {
+      setShowSplash(false);
+    }, 10000);
+
+    return () => clearTimeout(timeout);
+  }, []);
 
   const handleSplashComplete = () => {
     setShowSplash(false);
@@ -3215,6 +3232,73 @@ const splashStyles = StyleSheet.create({
     borderRadius: 40,
     transform: [{ scale: 2 }],
   },
+  // Error Boundary styles
+  errorTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    color: '#333',
+  },
+  errorMessage: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 20,
+    textAlign: 'center',
+    paddingHorizontal: 20,
+  },
+  retryButton: {
+    backgroundColor: '#2ECC40',
+    paddingHorizontal: 30,
+    paddingVertical: 12,
+    borderRadius: 25,
+  },
+  retryButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
 });
 
-export default App;
+// Error Boundary Component
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('App Error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <View style={[styles.container, styles.errorContainer]}>
+          <Text style={styles.errorTitle}>Oops! Something went wrong</Text>
+          <Text style={styles.errorMessage}>{this.state.error?.toString()}</Text>
+          <TouchableOpacity 
+            style={styles.retryButton}
+            onPress={() => this.setState({ hasError: false, error: null })}
+          >
+            <Text style={styles.retryButtonText}>Try Again</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+// Wrap App with ErrorBoundary
+const AppWithErrorBoundary = () => (
+  <ErrorBoundary>
+    <App />
+  </ErrorBoundary>
+);
+
+export default AppWithErrorBoundary;
