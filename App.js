@@ -31,6 +31,9 @@ import storage from '@react-native-firebase/storage';
 import analytics from '@react-native-firebase/analytics';
 import WebView from 'react-native-webview';
 
+// Firebase FieldValue per incrementi atomici
+const { FieldValue } = firestore;
+
 // ===========================
 // 1. THEME CONFIGURATION
 // ===========================
@@ -581,36 +584,45 @@ class SmartMemorySystem {
   }
 
   async initialize(userId) {
-    this.userId = userId;
-    this.sessionId = `session_${Date.now()}`;
-    
-    await this.loadUserContext();
+    try {
+      this.userId = userId;
+      this.sessionId = `session_${Date.now()}`;
+      
+      await this.loadUserContext();
+    } catch (error) {
+      console.error('Error initializing memory system:', error);
+    }
   }
 
   async processQuery(userQuery) {
-    const queryHash = this.generateQueryHash(userQuery);
-    const cachedResponse = await this.checkCache(queryHash);
-    
-    if (cachedResponse) {
-      console.log('💰 CACHE HIT - Risparmio API call!');
-      await this.updateAccessTime(queryHash);
+    try {
+      const queryHash = this.generateQueryHash(userQuery);
+      const cachedResponse = await this.checkCache(queryHash);
       
-      this.currentSession.push({
-        query: userQuery,
-        response: cachedResponse.aiResponse,
-        cached: true
-      });
+      if (cachedResponse) {
+        console.log('💰 CACHE HIT - Risparmio API call!');
+        await this.updateAccessTime(queryHash);
+        
+        this.currentSession.push({
+          query: userQuery,
+          response: cachedResponse.aiResponse,
+          cached: true
+        });
+        
+        return cachedResponse.aiResponse;
+      }
       
-      return cachedResponse.aiResponse;
+      console.log('🚀 CACHE MISS - Chiamo API');
+      const context = await this.buildContextFromHistory();
+      const aiResponse = await this.callCustomAPI(userQuery, context);
+      
+      await this.saveToMemory(userQuery, aiResponse, queryHash);
+      
+      return aiResponse;
+    } catch (error) {
+      console.error('Error processing query:', error);
+      return 'Errore nel processare la richiesta. Riprova più tardi.';
     }
-    
-    console.log('🚀 CACHE MISS - Chiamo API');
-    const context = await this.buildContextFromHistory();
-    const aiResponse = await this.callCustomAPI(userQuery, context);
-    
-    await this.saveToMemory(userQuery, aiResponse, queryHash);
-    
-    return aiResponse;
   }
 
   async checkCache(queryHash) {
@@ -639,80 +651,90 @@ class SmartMemorySystem {
   }
 
   async callCustomAPI(query, context) {
-    const OPENAI_API_KEY = process.env.OPENAI_API_KEY || 'YOUR_OPENAI_API_KEY_HERE';
-    
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPENAI_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: context
-          },
-          {
-            role: 'user',
-            content: query
-          }
-        ],
-        temperature: 0.7,
-        max_tokens: 500
-      })
-    });
-    
-    if (!response.ok) {
-      throw new Error(`API request failed: ${response.status}`);
+    try {
+      // React Native non supporta process.env - usa una costante
+      const OPENAI_API_KEY = 'YOUR_OPENAI_API_KEY_HERE'; // TODO: sostituisci con la tua chiave
+      
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${OPENAI_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'system',
+              content: context
+            },
+            {
+              role: 'user',
+              content: query
+            }
+          ],
+          temperature: 0.7,
+          max_tokens: 500
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`API request failed: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      return data.choices[0].message.content;
+    } catch (error) {
+      console.error('Errore API OpenAI:', error);
+      return 'Errore nel generare la risposta AI. Riprova più tardi.';
     }
-    
-    const data = await response.json();
-    return data.choices[0].message.content;
   }
 
   async saveToMemory(query, response, queryHash) {
-    const strainsMentioned = this.extractStrains(response);
-    
-    const memoryEntry = {
-      queryHash,
-      userId: this.userId,
-      sessionId: this.sessionId,
-      timestamp: new Date(),
-      userQuery: query,
-      aiResponse: response,
-      strainsMentioned,
-      queryType: this.classifyQuery(query),
-      responseLength: response.length,
-      hasBreedingInfo: response.includes('incrocio') || response.includes('cross'),
-      hasMedicalInfo: response.includes('medical') || response.includes('terapeutico'),
-      accessCount: 1,
-      lastAccessed: new Date()
-    };
-    
     try {
-      await firestore().collection('ai_responses').add(memoryEntry);
+      const strainsMentioned = this.extractStrains(response);
       
-      await firestore().collection('conversations').add({
+      const memoryEntry = {
+        queryHash,
         userId: this.userId,
         sessionId: this.sessionId,
         timestamp: new Date(),
+        userQuery: query,
+        aiResponse: response,
+        strainsMentioned,
+        queryType: this.classifyQuery(query),
+        responseLength: response.length,
+        hasBreedingInfo: response.includes('incrocio') || response.includes('cross'),
+        hasMedicalInfo: response.includes('medical') || response.includes('terapeutico'),
+        accessCount: 1,
+        lastAccessed: new Date()
+      };
+      
+      try {
+        await firestore().collection('ai_responses').add(memoryEntry);
+        
+        await firestore().collection('conversations').add({
+          userId: this.userId,
+          sessionId: this.sessionId,
+          timestamp: new Date(),
+          query,
+          response,
+          strainsMentioned
+        });
+      } catch (error) {
+        console.error('Error saving to Firestore:', error);
+      }
+      
+      this.cache.set(queryHash, memoryEntry);
+      
+      this.currentSession.push({
         query,
         response,
-        strainsMentioned
+        cached: false
       });
     } catch (error) {
-      console.error('Error saving to Firestore:', error);
+      console.error('Error in saveToMemory:', error);
     }
-    
-    this.cache.set(queryHash, memoryEntry);
-    
-    this.currentSession.push({
-      query,
-      response,
-      cached: false
-    });
   }
 
   async buildContextFromHistory() {
@@ -867,7 +889,7 @@ class SmartMemorySystem {
       if (!snapshot.empty) {
         await snapshot.docs[0].ref.update({
           lastAccessed: new Date(),
-          accessCount: firestore.FieldValue.increment(1)
+          accessCount: FieldValue.increment(1)
         });
       }
     } catch (error) {
@@ -916,17 +938,31 @@ class SmartMemorySystem {
   }
 
   async clearMemory() {
-    this.currentSession = [];
-    this.cache.clear();
-    await AsyncStorage.removeItem(`@user_context_${this.userId}`);
+    try {
+      this.currentSession = [];
+      this.cache.clear();
+      await AsyncStorage.removeItem(`@user_context_${this.userId}`);
+    } catch (error) {
+      console.error('Error clearing memory:', error);
+    }
   }
 
   async loadUserContext() {
-    return null;
+    try {
+      return null;
+    } catch (error) {
+      console.error('Error loading user context:', error);
+      return null;
+    }
   }
 
   async loadUserHistory() {
-    return null;
+    try {
+      return null;
+    } catch (error) {
+      console.error('Error loading user history:', error);
+      return null;
+    }
   }
 }
 
@@ -999,20 +1035,24 @@ class AnalyticsSystem {
   }
 
   async updateStrainAnalytics(strains) {
-    for (const strain of strains) {
-      try {
-        const strainRef = firestore().collection('strain_analytics').doc(strain);
-        await strainRef.update({
-          total_requests: firestore.FieldValue.increment(1),
-          last_requested: new Date()
-        });
-      } catch (error) {
-        await firestore().collection('strain_analytics').doc(strain).set({
-          strain_name: strain,
-          total_requests: 1,
-          last_requested: new Date()
-        });
+    try {
+      for (const strain of strains) {
+        try {
+          const strainRef = firestore().collection('strain_analytics').doc(strain);
+          await strainRef.update({
+            total_requests: FieldValue.increment(1),
+            last_requested: new Date()
+          });
+        } catch (error) {
+          await firestore().collection('strain_analytics').doc(strain).set({
+            strain_name: strain,
+            total_requests: 1,
+            last_requested: new Date()
+          });
+        }
       }
+    } catch (error) {
+      console.error('Error updating strain analytics:', error);
     }
   }
 
@@ -1139,7 +1179,12 @@ class AnalyticsSystem {
   }
 
   async getBreedingOpportunities() {
-    return [];
+    try {
+      return [];
+    } catch (error) {
+      console.error('Error getting breeding opportunities:', error);
+      return [];
+    }
   }
 }
 
@@ -1170,10 +1215,10 @@ const ThemeProvider = ({ children }) => {
   };
 
   const toggleTheme = async () => {
-    const newTheme = !isDarkMode;
-    setIsDarkMode(newTheme);
-    
     try {
+      const newTheme = !isDarkMode;
+      setIsDarkMode(newTheme);
+      
       await AsyncStorage.setItem('@theme_preference', newTheme ? 'dark' : 'light');
     } catch (error) {
       console.error('Error saving theme preference:', error);
@@ -1261,33 +1306,44 @@ const ChatScreen = () => {
   }, []);
 
   const initializeChat = async () => {
-    setIsLoadingContext(true);
-    
-    if (user) {
-      await memorySystem.initialize(user.uid);
-    }
-    
-    const context = await memorySystem.loadUserHistory();
-    
-    if (context) {
-      const welcomeMessage = {
+    try {
+      setIsLoadingContext(true);
+      
+      if (user) {
+        await memorySystem.initialize(user.uid);
+      }
+      
+      const context = await memorySystem.loadUserHistory();
+      
+      if (context) {
+        const welcomeMessage = {
+          id: Date.now().toString(),
+          text: `${t('common.welcome_back')} ${context}`,
+          sender: 'ai',
+          timestamp: new Date()
+        };
+        setMessages([welcomeMessage]);
+      } else {
+        const welcomeMessage = {
+          id: Date.now().toString(),
+          text: t('chat.welcome_message'),
+          sender: 'ai',
+          timestamp: new Date()
+        };
+        setMessages([welcomeMessage]);
+      }
+    } catch (error) {
+      console.error('Error initializing chat:', error);
+      const errorMessage = {
         id: Date.now().toString(),
-        text: `${t('common.welcome_back')} ${context}`,
+        text: t('chat.error_message'),
         sender: 'ai',
         timestamp: new Date()
       };
-      setMessages([welcomeMessage]);
-    } else {
-      const welcomeMessage = {
-        id: Date.now().toString(),
-        text: t('chat.welcome_message'),
-        sender: 'ai',
-        timestamp: new Date()
-      };
-      setMessages([welcomeMessage]);
+      setMessages([errorMessage]);
+    } finally {
+      setIsLoadingContext(false);
     }
-    
-    setIsLoadingContext(false);
   };
 
   const sendMessage = async () => {
@@ -1527,11 +1583,17 @@ const SettingsScreen = ({ navigation }) => {
         {
           text: t('common.confirm'),
           onPress: async () => {
-            setLoading(true);
-            await i18n.changeLanguage(language);
-            await AsyncStorage.setItem(STORAGE_KEY, language);
-            setLoading(false);
-            setShowLanguageModal(false);
+            try {
+              setLoading(true);
+              await i18n.changeLanguage(language);
+              await AsyncStorage.setItem(STORAGE_KEY, language);
+              setShowLanguageModal(false);
+            } catch (error) {
+              console.error('Error changing language:', error);
+              Alert.alert(t('common.error'), t('errors.language_load'));
+            } finally {
+              setLoading(false);
+            }
           }
         }
       ]
@@ -1544,23 +1606,25 @@ const SettingsScreen = ({ navigation }) => {
   };
 
   const handleNotificationToggle = async (type) => {
-    const newSettings = {
-      ...notificationSettings,
-      [type]: !notificationSettings[type]
-    };
-    setNotificationSettings(newSettings);
-    
-    if (user) {
-      try {
+    try {
+      const newSettings = {
+        ...notificationSettings,
+        [type]: !notificationSettings[type]
+      };
+      setNotificationSettings(newSettings);
+      
+      if (user) {
         await firestore()
           .collection('users')
           .doc(user.uid)
           .update({
             notificationSettings: newSettings
           });
-      } catch (error) {
-        console.error('Error updating notification settings:', error);
       }
+    } catch (error) {
+      console.error('Error updating notification settings:', error);
+      // Revert the change on error
+      setNotificationSettings(notificationSettings);
     }
   };
 
@@ -1574,8 +1638,13 @@ const SettingsScreen = ({ navigation }) => {
           text: t('common.confirm'),
           style: 'destructive',
           onPress: async () => {
-            await memorySystem.clearMemory();
-            Alert.alert(t('common.success'), t('settings.memory_cleared'));
+            try {
+              await memorySystem.clearMemory();
+              Alert.alert(t('common.success'), t('settings.memory_cleared'));
+            } catch (error) {
+              console.error('Error clearing memory:', error);
+              Alert.alert(t('common.error'), t('errors.cache_error'));
+            }
           }
         }
       ]
@@ -1583,11 +1652,13 @@ const SettingsScreen = ({ navigation }) => {
   };
 
   const handleRestorePurchases = async () => {
-    setLoading(true);
     try {
+      setLoading(true);
+      // TODO: Implement purchase restoration logic here
       Alert.alert(t('common.success'), t('subscription.purchases_restored'));
     } catch (error) {
-      Alert.alert(t('common.error'), error.message);
+      console.error('Error restoring purchases:', error);
+      Alert.alert(t('common.error'), error.message || t('common.error'));
     } finally {
       setLoading(false);
     }
@@ -2005,45 +2076,40 @@ const DocumentViewer = ({ documentType, language, onClose }) => {
 // ===========================
 // 11. ADMIN PANEL (7-TAP UNLOCK)
 // ===========================
-class AdminPanel extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      tapCount: 0,
-      isUnlocked: false,
-      activeTab: 'analytics',
-      selectedLanguage: 'it',
-      documents: {
-        privacy: '',
-        terms: '',
-        disclaimer: '',
-        support: ''
-      },
-      analyticsData: null,
-      uploadProgress: 0,
-      isUploading: false
-    };
-    this.tapTimer = null;
-  }
+const AdminPanel = ({ userId }) => {
+  const { isDarkMode } = useContext(ThemeContext);
+  const [tapCount, setTapCount] = useState(0);
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [activeTab, setActiveTab] = useState('analytics');
+  const [selectedLanguage, setSelectedLanguage] = useState('it');
+  const [documents, setDocuments] = useState({
+    privacy: '',
+    terms: '',
+    disclaimer: '',
+    support: ''
+  });
+  const [analyticsData, setAnalyticsData] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
+  const tapTimerRef = useRef(null);
 
-  handleLogoTap = () => {
-    this.setState(prevState => ({
-      tapCount: prevState.tapCount + 1
-    }));
-
-    clearTimeout(this.tapTimer);
+  const handleLogoTap = () => {
+    setTapCount(prev => prev + 1);
     
-    if (this.state.tapCount === 6) {
-      this.setState({ isUnlocked: true, tapCount: 0 });
+    clearTimeout(tapTimerRef.current);
+    
+    if (tapCount === 6) {
+      setIsUnlocked(true);
+      setTapCount(0);
       Alert.alert('Admin Mode', 'Admin panel unlocked!');
     }
 
-    this.tapTimer = setTimeout(() => {
-      this.setState({ tapCount: 0 });
+    tapTimerRef.current = setTimeout(() => {
+      setTapCount(0);
     }, 2000);
   };
 
-  loadAnalytics = async () => {
+  const loadAnalytics = async () => {
     try {
       const [
         popularity,
@@ -2051,62 +2117,25 @@ class AdminPanel extends React.Component {
         opportunities
       ] = await Promise.all([
         analyticsSystem.getStrainPopularity(),
-        analyticsSystem.getUserPatterns(this.props.userId),
+        analyticsSystem.getUserPatterns(userId),
         analyticsSystem.getBreedingOpportunities()
       ]);
 
-      this.setState({
-        analyticsData: {
-          popularity,
-          patterns,
-          opportunities
-        }
+      setAnalyticsData({
+        popularity,
+        patterns,
+        opportunities
       });
     } catch (error) {
       console.error('Error loading analytics:', error);
     }
   };
 
-  uploadDocument = async (type, content) => {
-    this.setState({ isUploading: true, uploadProgress: 0 });
-
-    try {
-      const html = this.createDocumentHTML(type, content);
-      const docPath = `legal/${this.state.selectedLanguage}/${type}.html`;
-      const reference = storage().ref(docPath);
-      
-      const task = reference.putString(html, 'raw', {
-        contentType: 'text/html'
-      });
-
-      task.on('state_changed', 
-        (snapshot) => {
-          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          this.setState({ uploadProgress: progress });
-        },
-        (error) => {
-          console.error('Upload error:', error);
-          Alert.alert('Error', 'Failed to upload document');
-        },
-        () => {
-          this.setState({ isUploading: false });
-          Alert.alert('Success', 'Document uploaded successfully');
-          
-          const cacheKey = `@doc_${type}_${this.state.selectedLanguage}`;
-          AsyncStorage.removeItem(cacheKey);
-        }
-      );
-    } catch (error) {
-      console.error('Error uploading document:', error);
-      this.setState({ isUploading: false });
-    }
-  };
-
-  createDocumentHTML = (type, content) => {
+  const createDocumentHTML = (type, content) => {
     const date = new Date().toLocaleDateString();
     return `
 <!DOCTYPE html>
-<html lang="${this.state.selectedLanguage}">
+<html lang="${selectedLanguage}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -2173,120 +2202,164 @@ class AdminPanel extends React.Component {
     `;
   };
 
-  render() {
-    const { isDarkMode } = this.context;
-    
-    if (!this.state.isUnlocked) {
-      return (
-        <TouchableOpacity 
-          style={styles.hiddenTapArea} 
-          onPress={this.handleLogoTap}
-          activeOpacity={1}
-        />
+  const uploadDocument = async (type, content) => {
+    setIsUploading(true);
+    setUploadProgress(0);
+
+    try {
+      const html = createDocumentHTML(type, content);
+      const docPath = `legal/${selectedLanguage}/${type}.html`;
+      const reference = storage().ref(docPath);
+      
+      const task = reference.putString(html, 'raw', {
+        contentType: 'text/html'
+      });
+
+      task.on('state_changed', 
+        (snapshot) => {
+          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          setUploadProgress(progress);
+        },
+        (error) => {
+          console.error('Upload error:', error);
+          Alert.alert('Error', 'Failed to upload document');
+          setIsUploading(false);
+        },
+        async () => {
+          setIsUploading(false);
+          Alert.alert('Success', 'Document uploaded successfully');
+          
+          const cacheKey = `@doc_${type}_${selectedLanguage}`;
+          try {
+            await AsyncStorage.removeItem(cacheKey);
+          } catch (error) {
+            console.error('Error clearing cache:', error);
+          }
+        }
       );
+    } catch (error) {
+      console.error('Error uploading document:', error);
+      setIsUploading(false);
     }
+  };
 
+  useEffect(() => {
+    return () => {
+      if (tapTimerRef.current) {
+        clearTimeout(tapTimerRef.current);
+      }
+    };
+  }, []);
+
+  if (!isUnlocked) {
     return (
-      <Modal
-        visible={this.state.isUnlocked}
-        animationType="slide"
-        onRequestClose={() => this.setState({ isUnlocked: false })}
-      >
-        <SafeAreaView style={[styles.adminContainer, isDarkMode && styles.darkAdminContainer]}>
-          <View style={styles.adminHeader}>
-            <Text style={[styles.adminTitle, isDarkMode && styles.darkText]}>Admin Panel</Text>
-            <TouchableOpacity onPress={() => this.setState({ isUnlocked: false })}>
-              <Icon name="close" size={24} color={isDarkMode ? '#FFF' : theme.colors.text} />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.tabBar}>
-            <TouchableOpacity
-              style={[styles.tab, this.state.activeTab === 'analytics' && styles.activeTab]}
-              onPress={() => this.setState({ activeTab: 'analytics' })}
-            >
-              <Text style={styles.tabText}>Analytics</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.tab, this.state.activeTab === 'documents' && styles.activeTab]}
-              onPress={() => this.setState({ activeTab: 'documents' })}
-            >
-              <Text style={styles.tabText}>Documents</Text>
-            </TouchableOpacity>
-          </View>
-
-          {this.state.activeTab === 'analytics' && (
-            <ScrollView style={styles.adminContent}>
-              <Text style={[styles.sectionTitle, isDarkMode && styles.darkText]}>
-                Strain Popularity
-              </Text>
-            </ScrollView>
-          )}
-
-          {this.state.activeTab === 'documents' && (
-            <ScrollView style={styles.adminContent}>
-              <View style={styles.languageSelector}>
-                {['it', 'en', 'es'].map(lang => (
-                  <TouchableOpacity
-                    key={lang}
-                    style={[
-                      styles.langButton,
-                      this.state.selectedLanguage === lang && styles.activeLangButton
-                    ]}
-                    onPress={() => this.setState({ selectedLanguage: lang })}
-                  >
-                    <Text style={styles.langButtonText}>{lang.toUpperCase()}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              {Object.keys(this.state.documents).map(docType => (
-                <View key={docType} style={styles.documentEditor}>
-                  <Text style={[styles.documentTitle, isDarkMode && styles.darkText]}>
-                    {docType.charAt(0).toUpperCase() + docType.slice(1)}
-                  </Text>
-                  <TextInput
-                    style={[styles.documentInput, isDarkMode && styles.darkInput]}
-                    multiline
-                    value={this.state.documents[docType]}
-                    onChangeText={(text) => this.setState({
-                      documents: { ...this.state.documents, [docType]: text }
-                    })}
-                    placeholder={`Enter ${docType} content in HTML format...`}
-                  />
-                  <TouchableOpacity
-                    style={styles.uploadButton}
-                    onPress={() => this.uploadDocument(docType, this.state.documents[docType])}
-                  >
-                    <Text style={styles.uploadButtonText}>Upload</Text>
-                  </TouchableOpacity>
-                </View>
-              ))}
-
-              {this.state.isUploading && (
-                <View style={styles.progressContainer}>
-                  <Text style={styles.progressText}>
-                    Uploading... {Math.round(this.state.uploadProgress)}%
-                  </Text>
-                  <View style={styles.progressBar}>
-                    <View 
-                      style={[
-                        styles.progressFill, 
-                        { width: `${this.state.uploadProgress}%` }
-                      ]} 
-                    />
-                  </View>
-                </View>
-              )}
-            </ScrollView>
-          )}
-        </SafeAreaView>
-      </Modal>
+      <TouchableOpacity 
+        style={styles.hiddenTapArea} 
+        onPress={handleLogoTap}
+        activeOpacity={1}
+      />
     );
   }
-}
 
-AdminPanel.contextType = ThemeContext;
+  return (
+    <Modal
+      visible={isUnlocked}
+      animationType="slide"
+      onRequestClose={() => setIsUnlocked(false)}
+    >
+      <SafeAreaView style={[styles.adminContainer, isDarkMode && styles.darkAdminContainer]}>
+        <View style={styles.adminHeader}>
+          <Text style={[styles.adminTitle, isDarkMode && styles.darkText]}>Admin Panel</Text>
+          <TouchableOpacity onPress={() => setIsUnlocked(false)}>
+            <Icon name="close" size={24} color={isDarkMode ? '#FFF' : theme.colors.text} />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.tabBar}>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'analytics' && styles.activeTab]}
+            onPress={() => setActiveTab('analytics')}
+          >
+            <Text style={styles.tabText}>Analytics</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'documents' && styles.activeTab]}
+            onPress={() => setActiveTab('documents')}
+          >
+            <Text style={styles.tabText}>Documents</Text>
+          </TouchableOpacity>
+        </View>
+
+        {activeTab === 'analytics' && (
+          <ScrollView style={styles.adminContent}>
+            <Text style={[styles.sectionTitle, isDarkMode && styles.darkText]}>
+              Strain Popularity
+            </Text>
+          </ScrollView>
+        )}
+
+        {activeTab === 'documents' && (
+          <ScrollView style={styles.adminContent}>
+            <View style={styles.languageSelector}>
+              {['it', 'en', 'es'].map(lang => (
+                <TouchableOpacity
+                  key={lang}
+                  style={[
+                    styles.langButton,
+                    selectedLanguage === lang && styles.activeLangButton
+                  ]}
+                  onPress={() => setSelectedLanguage(lang)}
+                >
+                  <Text style={styles.langButtonText}>{lang.toUpperCase()}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {Object.keys(documents).map(docType => (
+              <View key={docType} style={styles.documentEditor}>
+                <Text style={[styles.documentTitle, isDarkMode && styles.darkText]}>
+                  {docType.charAt(0).toUpperCase() + docType.slice(1)}
+                </Text>
+                <TextInput
+                  style={[styles.documentInput, isDarkMode && styles.darkInput]}
+                  multiline
+                  value={documents[docType]}
+                  onChangeText={(text) => setDocuments(prev => ({
+                    ...prev,
+                    [docType]: text
+                  }))}
+                  placeholder={`Enter ${docType} content in HTML format...`}
+                />
+                <TouchableOpacity
+                  style={styles.uploadButton}
+                  onPress={() => uploadDocument(docType, documents[docType])}
+                >
+                  <Text style={styles.uploadButtonText}>Upload</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+
+            {isUploading && (
+              <View style={styles.progressContainer}>
+                <Text style={styles.progressText}>
+                  Uploading... {Math.round(uploadProgress)}%
+                </Text>
+                <View style={styles.progressBar}>
+                  <View 
+                    style={[
+                      styles.progressFill, 
+                      { width: `${uploadProgress}%` }
+                    ]} 
+                  />
+                </View>
+              </View>
+            )}
+          </ScrollView>
+        )}
+      </SafeAreaView>
+    </Modal>
+  );
+};
 
 // ===========================
 // 12. PLACEHOLDER SCREENS
