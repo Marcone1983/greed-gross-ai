@@ -1,7 +1,7 @@
 module.exports = {
   presets: ['module:metro-react-native-babel-preset'],
   plugins: [
-    '@babel/plugin-transform-private-methods',
+    ['@babel/plugin-transform-private-methods', { loose: false }],
     'react-native-reanimated/plugin',
     [
       'module:react-native-dotenv',
