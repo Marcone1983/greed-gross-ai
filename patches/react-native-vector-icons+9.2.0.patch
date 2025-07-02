@@ -1,0 +1,11 @@
+diff --git a/node_modules/react-native-vector-icons/android/build.gradle b/node_modules/react-native-vector-icons/android/build.gradle
+index 1234567..abcdefg 100644
+--- a/node_modules/react-native-vector-icons/android/build.gradle
++++ b/node_modules/react-native-vector-icons/android/build.gradle
+@@ -15,6 +15,7 @@ buildscript {
+ apply plugin: 'com.android.library'
+ 
+ android {
++  namespace "com.oblador.vectoricons"
+   compileSdkVersion safeExtGet('compileSdkVersion', 28)
+   buildToolsVersion safeExtGet('buildToolsVersion', '28.0.3')
