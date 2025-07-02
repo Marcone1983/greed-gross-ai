@@ -43,9 +43,12 @@ subprojects {
                     targetCompatibility JavaVersion.VERSION_11
                 }
                 
+                // Set Kotlin compile options if using Kotlin
                 if (project.hasProperty("kotlin")) {
-                    kotlin {
-                        jvmToolchain(11)
+                    project.tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+                        kotlinOptions {
+                            jvmTarget = "11"
+                        }
                     }
                 }
             }
