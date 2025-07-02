@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="512" height="512" fill="#000000"/>
+  
+  <!-- Cannabis Leaf -->
+  <g transform="translate(256, 256)">
+    <path d="M0,-120 C-20,-100 -30,-60 -25,-30 C-20,-10 -10,0 0,0 C10,0 20,-10 25,-30 C30,-60 20,-100 0,-120Z" fill="#2ECC40" transform="rotate(0)"/>
+    <path d="M0,-120 C-20,-100 -30,-60 -25,-30 C-20,-10 -10,0 0,0 C10,0 20,-10 25,-30 C30,-60 20,-100 0,-120Z" fill="#2ECC40" transform="rotate(45)"/>
+    <path d="M0,-120 C-20,-100 -30,-60 -25,-30 C-20,-10 -10,0 0,0 C10,0 20,-10 25,-30 C30,-60 20,-100 0,-120Z" fill="#2ECC40" transform="rotate(90)"/>
+    <path d="M0,-120 C-20,-100 -30,-60 -25,-30 C-20,-10 -10,0 0,0 C10,0 20,-10 25,-30 C30,-60 20,-100 0,-120Z" fill="#2ECC40" transform="rotate(135)"/>
+    <path d="M0,-120 C-20,-100 -30,-60 -25,-30 C-20,-10 -10,0 0,0 C10,0 20,-10 25,-30 C30,-60 20,-100 0,-120Z" fill="#2ECC40" transform="rotate(180)"/>
+    <path d="M0,-120 C-20,-100 -30,-60 -25,-30 C-20,-10 -10,0 0,0 C10,0 20,-10 25,-30 C30,-60 20,-100 0,-120Z" fill="#2ECC40" transform="rotate(225)"/>
+    <path d="M0,-120 C-20,-100 -30,-60 -25,-30 C-20,-10 -10,0 0,0 C10,0 20,-10 25,-30 C30,-60 20,-100 0,-120Z" fill="#2ECC40" transform="rotate(270)"/>
+    <path d="M0,-120 C-20,-100 -30,-60 -25,-30 C-20,-10 -10,0 0,0 C10,0 20,-10 25,-30 C30,-60 20,-100 0,-120Z" fill="#2ECC40" transform="rotate(315)"/>
+    
+    <!-- Center circle -->
+    <circle cx="0" cy="0" r="30" fill="#FFD700"/>
+  </g>
+  
+  <!-- Text G&G -->
+  <text x="256" y="400" font-family="Arial, sans-serif" font-size="80" font-weight="bold" text-anchor="middle" fill="#FFD700">G&amp;G</text>
+</svg>

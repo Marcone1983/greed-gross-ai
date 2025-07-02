@@ -14,7 +14,8 @@ import {
   TextInput,
   FlatList,
   KeyboardAvoidingView,
-  Platform
+  Platform,
+  Animated
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 // Removed react-native-vector-icons - using text placeholders
@@ -2430,7 +2431,116 @@ const ConversationHistoryScreen = () => {
 };
 
 // ===========================
-// 13. NAVIGATION SETUP
+// 13. SPLASH SCREEN COMPONENT
+// ===========================
+const SplashScreen = ({ onAnimationComplete }) => {
+  const [progress, setProgress] = useState(0);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.8)).current;
+
+  useEffect(() => {
+    // Fade in animation
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 1000,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        friction: 8,
+        tension: 40,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Progress bar animation
+    const progressInterval = setInterval(() => {
+      setProgress((prev) => {
+        if (prev >= 100) {
+          clearInterval(progressInterval);
+          setTimeout(() => {
+            onAnimationComplete();
+          }, 500);
+          return 100;
+        }
+        return prev + 2;
+      });
+    }, 50);
+
+    return () => clearInterval(progressInterval);
+  }, []);
+
+  return (
+    <View style={splashStyles.container}>
+      <Animated.View
+        style={[
+          splashStyles.logoContainer,
+          {
+            opacity: fadeAnim,
+            transform: [{ scale: scaleAnim }],
+          },
+        ]}
+      >
+        {/* Logo */}
+        <View style={splashStyles.logo}>
+          <Image 
+            source={require('./assets/logo.png')} 
+            style={splashStyles.logoImage}
+            resizeMode="contain"
+          />
+          <Text style={splashStyles.titleText}>GREED & GROSS</Text>
+          <Text style={splashStyles.subtitleText}>Cannabis Breeding AI</Text>
+        </View>
+      </Animated.View>
+
+      {/* Loading Bar */}
+      <View style={splashStyles.loadingContainer}>
+        <View style={splashStyles.progressBarBackground}>
+          <View
+            style={[
+              splashStyles.progressBar,
+              { width: `${progress}%` },
+            ]}
+          />
+        </View>
+        <Text style={splashStyles.loadingText}>
+          {progress < 30 ? 'Initializing AI...' : 
+           progress < 60 ? 'Loading strain database...' :
+           progress < 90 ? 'Preparing breeding simulator...' :
+           'Almost ready...'}
+        </Text>
+      </View>
+
+      {/* Effects */}
+      <View style={splashStyles.effects}>
+        {[...Array(5)].map((_, i) => (
+          <Animated.View
+            key={i}
+            style={[
+              splashStyles.smokeEffect,
+              {
+                opacity: fadeAnim,
+                transform: [
+                  {
+                    translateY: fadeAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [50, -20],
+                    }),
+                  },
+                ],
+                left: `${20 + i * 15}%`,
+              },
+            ]}
+          />
+        ))}
+      </View>
+    </View>
+  );
+};
+
+// ===========================
+// 14. NAVIGATION SETUP
 // ===========================
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -2506,9 +2616,19 @@ const TabNavigator = () => {
 };
 
 // ===========================
-// 14. MAIN APP COMPONENT
+// 15. MAIN APP COMPONENT
 // ===========================
 const App = () => {
+  const [showSplash, setShowSplash] = useState(true);
+
+  const handleSplashComplete = () => {
+    setShowSplash(false);
+  };
+
+  if (showSplash) {
+    return <SplashScreen onAnimationComplete={handleSplashComplete} />;
+  }
+
   return (
     <ThemeProvider>
       <UserProvider>
@@ -3020,6 +3140,81 @@ const styles = StyleSheet.create({
     height: '100%',
     backgroundColor: theme.colors.primary
   }
+});
+
+// Splash Screen Styles
+const splashStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#000000',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: 100,
+  },
+  logo: {
+    alignItems: 'center',
+  },
+  logoImage: {
+    width: 150,
+    height: 150,
+    marginBottom: 20,
+  },
+  titleText: {
+    fontSize: 36,
+    fontWeight: 'bold',
+    color: '#2ECC40',
+    letterSpacing: 2,
+    marginBottom: 10,
+  },
+  subtitleText: {
+    fontSize: 18,
+    color: '#FFD700',
+    letterSpacing: 1,
+  },
+  loadingContainer: {
+    position: 'absolute',
+    bottom: 100,
+    width: '80%',
+    alignItems: 'center',
+  },
+  progressBarBackground: {
+    width: '100%',
+    height: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 3,
+    overflow: 'hidden',
+    marginBottom: 20,
+  },
+  progressBar: {
+    height: '100%',
+    backgroundColor: '#2ECC40',
+    borderRadius: 3,
+  },
+  loadingText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    opacity: 0.8,
+  },
+  effects: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    pointerEvents: 'none',
+  },
+  smokeEffect: {
+    position: 'absolute',
+    bottom: 50,
+    width: 80,
+    height: 80,
+    backgroundColor: 'rgba(46, 204, 64, 0.2)',
+    borderRadius: 40,
+    transform: [{ scale: 2 }],
+  },
 });
 
 export default App;
