@@ -1,4 +1,4 @@
-package com.linkbridge.app;
+package com.greedandgross;
 
 import com.facebook.react.ReactActivity;
 import com.facebook.react.ReactActivityDelegate;

@@ -1,4 +1,4 @@
-package com.linkbridge.app;
+package com.greedandgross;
 
 import android.app.Application;
 import androidx.multidex.MultiDexApplication;
