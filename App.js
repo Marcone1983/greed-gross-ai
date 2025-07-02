@@ -2485,7 +2485,7 @@ const SplashScreen = ({ onAnimationComplete }) => {
         {/* Logo */}
         <View style={splashStyles.logo}>
           <Image 
-            source={require('./assets/logo.png')} 
+            source={{uri: 'https://i.imgur.com/zkyXF7Y.png'}} 
             style={splashStyles.logoImage}
             resizeMode="contain"
           />
