@@ -17,7 +17,27 @@ import {
   Platform
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Icon from 'react-native-vector-icons/MaterialIcons'; // CORRETTO: import reale
+// Removed react-native-vector-icons - using text placeholders
+// Simple Icon replacement component
+const Icon = ({ name, size = 24, color = '#000' }) => {
+  const icons = {
+    'thumb-up': '👍',
+    'thumb-down': '👎',
+    'psychology': '🧠',
+    'chevron-right': '›',
+    'arrow-back': '←',
+    'close': '✕',
+    'check': '✓',
+    'error-outline': '⚠️',
+    'chat': '💬',
+    'local-florist': '🌿',
+    'science': '🧪',
+    'star': '⭐',
+    'settings': '⚙️'
+  };
+  return <Text style={{ fontSize: size, color }}>{icons[name] || '•'}</Text>;
+};
+
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
