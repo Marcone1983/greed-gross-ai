@@ -2,6 +2,12 @@ apply plugin: "com.android.application"
 apply plugin: "com.facebook.react"
 apply plugin: 'com.google.gms.google-services'
 
+react {
+    // Configuration for React Native
+    entryFile = "index.js"
+    enableHermes = false
+}
+
 def enableProguardInReleaseBuilds = false
 def jscFlavor = 'org.webkit:android-jsc:+'
 
