@@ -69,6 +69,15 @@ subprojects {
         }
     }
     
+    // Specific fix for react-native-safe-area-context
+    if (project.name == "react-native-safe-area-context") {
+        project.afterEvaluate {
+            android {
+                namespace = "com.th3rdwave.safeareacontext"
+            }
+        }
+    }
+    
     // Fix Kotlin JVM target for all projects
     afterEvaluate {
         tasks.matching { it.name.contains("Kotlin") && it.name.contains("compile") }.configureEach {
