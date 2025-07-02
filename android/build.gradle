@@ -27,14 +27,5 @@ allprojects {
         mavenCentral()
         maven { url 'https://www.jitpack.io' }
     }
-    
-    afterEvaluate {
-        if (project.hasProperty("kotlin")) {
-            project.tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
-                kotlinOptions {
-                    jvmTarget = "11"
-                }
-            }
-        }
-    }
 }
+EOF < /dev/null
