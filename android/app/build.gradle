@@ -71,4 +71,4 @@ dependencies {
     implementation 'com.reactnativecommunity:webview:13.7.0'
 }
 
-apply from: "../../node_modules/react-native-gradle-plugin/react-native.gradle"
+apply from: file("../../node_modules/@react-native/gradle-plugin/dist/index.js")
