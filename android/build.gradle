@@ -28,4 +28,3 @@ allprojects {
         maven { url 'https://www.jitpack.io' }
     }
 }
-EOF < /dev/null
