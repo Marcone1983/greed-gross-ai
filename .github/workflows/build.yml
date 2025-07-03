@@ -38,8 +38,12 @@ jobs:
     - name: Create .env file
       run: echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" > .env
 
-    - name: Decode Keystore
-      run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/release.keystore
+    - name: Create Keystore
+      run: |
+        keytool -genkey -v -keystore android/app/release.keystore \
+          -storepass greedgross123 -alias greedandgross -keypass greedgross123 \
+          -keyalg RSA -keysize 2048 -validity 10000 \
+          -dname "CN=Greed and Gross,O=GreedGross,C=US" -noprompt
 
     # Build APK
     - name: Build Release APK
@@ -48,9 +52,9 @@ jobs:
         ./gradlew assembleRelease
       env:
         MYAPP_UPLOAD_STORE_FILE: release.keystore
-        MYAPP_UPLOAD_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-        MYAPP_UPLOAD_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-        MYAPP_UPLOAD_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        MYAPP_UPLOAD_KEY_ALIAS: greedandgross
+        MYAPP_UPLOAD_STORE_PASSWORD: greedgross123
+        MYAPP_UPLOAD_KEY_PASSWORD: greedgross123
 
     # Build AAB
     - name: Build Release AAB
@@ -59,9 +63,9 @@ jobs:
         ./gradlew bundleRelease
       env:
         MYAPP_UPLOAD_STORE_FILE: release.keystore
-        MYAPP_UPLOAD_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-        MYAPP_UPLOAD_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-        MYAPP_UPLOAD_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        MYAPP_UPLOAD_KEY_ALIAS: greedandgross
+        MYAPP_UPLOAD_STORE_PASSWORD: greedgross123
+        MYAPP_UPLOAD_KEY_PASSWORD: greedgross123
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
