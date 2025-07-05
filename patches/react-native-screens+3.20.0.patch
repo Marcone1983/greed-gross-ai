@@ -1,0 +1,26 @@
+diff --git a/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreenStack.kt b/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreenStack.kt
+index 1111111..2222222 100644
+--- a/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreenStack.kt
++++ b/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreenStack.kt
+@@ -297,7 +297,7 @@ class ScreenStack(context: Context?) : ScreenContainer(context) {
+         }
+ 
+         override fun drawChild(canvas: Canvas, child: View, drawingTime: Long): Boolean {
+-            return super.drawChild(canvas, child, drawingTime)
++            return super.drawChild(canvas!!, child, drawingTime)
+         }
+ 
+         override fun onApplyWindowInsets(insets: WindowInsets?): WindowInsets {
+diff --git a/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreenStackHeaderConfig.kt b/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreenStackHeaderConfig.kt
+index 3333333..4444444 100644
+--- a/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreenStackHeaderConfig.kt
++++ b/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreenStackHeaderConfig.kt
+@@ -390,7 +390,7 @@ class ScreenStackHeaderConfig(context: Context) : ViewGroup(context) {
+         val titleTextView = toolbar.getTitleTextView()
+         val typedArray = context.theme.obtainStyledAttributes(
+             intArrayOf(
+-                android.R.attr.textColorPrimary,
++                androidx.appcompat.R.attr.colorPrimary,
+             ),
+         )
+         titleTextView?.setTextColor(typedArray.getColor(0, Color.BLACK))
