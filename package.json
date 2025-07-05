@@ -8,7 +8,7 @@
     "start": "react-native start",
     "test": "jest",
     "lint": "eslint .",
-    "postinstall": "patch-package"
+    "postinstall": ""
   },
   "dependencies": {
     "react": "18.2.0",
@@ -28,7 +28,7 @@
     "react-native-localize": "^3.0.0",
     "react-native-safe-area-context": "~4.5.0",
     "@react-native-community/slider": "^4.4.2",
-    "react-native-screens": "3.20.0"
+    "react-native-screens": "3.18.2"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
