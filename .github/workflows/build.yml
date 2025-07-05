@@ -26,11 +26,11 @@ jobs:
       with:
         node-version: '18.x'
 
-    - name: Clean npm cache
-      run: npm cache clean --force
-      
     - name: Install dependencies
-      run: npm ci --force
+      run: |
+        rm -rf node_modules
+        npm cache clean --force
+        npm install
 
     - name: Make gradlew executable
       run: chmod +x android/gradlew
