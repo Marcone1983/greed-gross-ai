@@ -13,7 +13,7 @@ android {
     ndkVersion rootProject.ext.ndkVersion
     compileSdkVersion rootProject.ext.compileSdkVersion
 
-    namespace "con.ggnextlevel.app"
+    namespace "com.ggnextlevel.app"
 
     buildFeatures {
         buildConfig true
@@ -24,7 +24,7 @@ android {
         targetCompatibility JavaVersion.VERSION_11
     }
     defaultConfig {
-        applicationId "con.ggnextlevel.app"
+        applicationId "com.ggnextlevel.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

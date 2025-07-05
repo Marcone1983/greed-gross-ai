@@ -1,4 +1,4 @@
-package con.ggnextlevel.app;
+package com.ggnextlevel.app;
 
 import com.facebook.react.ReactActivity;
 import com.facebook.react.ReactActivityDelegate;
