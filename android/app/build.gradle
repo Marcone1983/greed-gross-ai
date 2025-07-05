@@ -13,7 +13,7 @@ android {
     ndkVersion rootProject.ext.ndkVersion
     compileSdkVersion rootProject.ext.compileSdkVersion
 
-    namespace "com.greedandgross"
+    namespace "com.linkbridge.app"
 
     buildFeatures {
         buildConfig true
