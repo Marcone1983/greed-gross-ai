@@ -875,7 +875,7 @@ class SmartMemorySystem {
         apiKey = OPENAI_API_KEY;
       }
       
-      if (!apiKey || apiKey.includes('YOUR_OPENAI_API_KEY')) {
+      if (!apiKey) {
         // Return a helpful message instead of crashing
         return "⚠️ Configurazione AI non completata. Per utilizzare l'assistente AI, configura la chiave API nelle impostazioni dell'app.";
       }
