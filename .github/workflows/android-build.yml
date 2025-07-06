@@ -62,7 +62,7 @@ jobs:
                 "client_info": {
                   "mobilesdk_app_id": "1:123456789:android:abc123",
                   "android_client_info": {
-                    "package_name": "com.ggnextlevel.app"
+                    "package_name": "con.ggnextlevel.app"
                   }
                 },
                 "oauth_client": [],
@@ -91,6 +91,13 @@ jobs:
           -storepass greedgross123 -alias greedandgross -keypass greedgross123 \
           -keyalg RSA -keysize 2048 -validity 10000 \
           -dname "CN=Greed and Gross,O=GreedGross,C=US" -noprompt
+
+    # Clean Gradle cache
+    - name: Clean Gradle Cache
+      run: |
+        cd android
+        ./gradlew clean
+        rm -rf ~/.gradle/caches/
 
     # Build APK
     - name: Build Release APK
