@@ -52,6 +52,12 @@ import storage from '@react-native-firebase/storage';
 import analytics from '@react-native-firebase/analytics';
 import WebView from 'react-native-webview';
 
+// Import translations
+import { deTranslations, frTranslations } from './src/locales/translations';
+// Import services
+import { analyticsCollector, analyticsEngine, analyticsDashboard } from './src/services/analytics';
+import revenueCatService from './src/services/revenueCat';
+
 // Firebase FieldValue per incrementi atomici
 const { FieldValue } = firestore;
 
@@ -561,7 +567,7 @@ const languageDetector = {
         return callback(savedLanguage);
       }
       
-      const bestLanguage = Localize.findBestAvailableLanguage(['it', 'en', 'es']);
+      const bestLanguage = Localize.findBestAvailableLanguage(['it', 'en', 'es', 'de', 'fr']);
       callback(bestLanguage?.languageTag || 'it');
     } catch (error) {
       callback('it');
@@ -586,7 +592,9 @@ i18n
     resources: {
       it: { translation: itTranslations },
       en: { translation: enTranslations },
-      es: { translation: esTranslations }
+      es: { translation: esTranslations },
+      de: { translation: deTranslations },
+      fr: { translation: frTranslations }
     },
     interpolation: {
       escapeValue: false
@@ -1264,8 +1272,13 @@ const UserProvider = ({ children }) => {
       if (firebaseUser) {
         const profile = await loadUserProfile(firebaseUser.uid);
         setUserProfile(profile);
+        
+        // Initialize services
+        await revenueCatService.initialize(firebaseUser.uid);
+        await memorySystem.initialize(firebaseUser.uid);
       } else {
         setUserProfile(null);
+        await revenueCatService.logout();
       }
     });
 
@@ -1675,8 +1688,12 @@ const SettingsScreen = ({ navigation }) => {
   const handleRestorePurchases = async () => {
     try {
       setLoading(true);
-      // TODO: Implement purchase restoration logic here
-      Alert.alert(t('common.success'), t('subscription.purchases_restored'));
+      const result = await revenueCatService.restorePurchases();
+      if (result.success) {
+        Alert.alert(t('common.success'), t('subscription.purchases_restored'));
+      } else {
+        Alert.alert(t('common.error'), result.error);
+      }
     } catch (error) {
       console.error('Error restoring purchases:', error);
       Alert.alert(t('common.error'), error.message || t('common.error'));
@@ -1899,6 +1916,8 @@ const LanguageSelector = ({ currentLanguage, onSelect, onClose }) => {
     { code: 'it', name: 'Italiano', flag: '🇮🇹' },
     { code: 'en', name: 'English', flag: '🇬🇧' },
     { code: 'es', name: 'Español', flag: '🇪🇸' },
+    { code: 'de', name: 'Deutsch', flag: '🇩🇪' },
+    { code: 'fr', name: 'Français', flag: '🇫🇷' }
   ];
 
   return (
@@ -2137,9 +2156,9 @@ const AdminPanel = ({ userId }) => {
         patterns,
         opportunities
       ] = await Promise.all([
-        analyticsSystem.getStrainPopularity(),
-        analyticsSystem.getUserPatterns(userId),
-        analyticsSystem.getBreedingOpportunities()
+        analyticsEngine.getStrainPopularity(),
+        analyticsEngine.getUserPatterns(userId),
+        analyticsEngine.getBreedingOpportunities()
       ]);
 
       setAnalyticsData({
