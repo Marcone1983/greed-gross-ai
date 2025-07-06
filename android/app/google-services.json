@@ -1,13 +1,14 @@
 {
   "project_info": {
-    "project_number": "YOUR_PROJECT_NUMBER",
-    "project_id": "greedandgross-app",
-    "storage_bucket": "greedandgross-app.appspot.com"
+    "project_number": "948778860736",
+    "firebase_url": "https://greedandgrossnextlevel-default-rtdb.europe-west1.firebasedatabase.app",
+    "project_id": "greedandgrossnextlevel",
+    "storage_bucket": "greedandgrossnextlevel.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:YOUR_PROJECT_NUMBER:android:YOUR_APP_ID",
+        "mobilesdk_app_id": "1:948778860736:android:eeed0d931f65b0a00e2d25",
         "android_client_info": {
           "package_name": "com.ggnextlevel.app"
         }
@@ -15,7 +16,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "YOUR_API_KEY_HERE"
+          "current_key": "AIzaSyCeI-6XlgDEn3fcEQEMGqOP_xYj9Ygit50"
         }
       ],
       "services": {
