@@ -138,6 +138,8 @@ import { deTranslations, frTranslations } from './src/locales/translations';
 // Import services
 import { analyticsCollector, analyticsEngine, analyticsDashboard } from './src/services/analytics';
 import revenueCatService from './src/services/revenueCat';
+// Import config
+import { OPENAI_API_KEY } from './src/config/apiKeys';
 
 // Create analytics service alias
 const analyticsService = analyticsDashboard;
@@ -866,10 +868,14 @@ class SmartMemorySystem {
 
   async callCustomAPI(query, context) {
     try {
-      // Try to get API key from AsyncStorage first
-      let OPENAI_API_KEY = await AsyncStorage.getItem('@openai_api_key');
+      // Try to get API key from AsyncStorage first, fallback to imported config
+      let apiKey = await AsyncStorage.getItem('@openai_api_key');
       
-      if (!OPENAI_API_KEY || OPENAI_API_KEY === 'YOUR_OPENAI_API_KEY_HERE') {
+      if (!apiKey) {
+        apiKey = OPENAI_API_KEY;
+      }
+      
+      if (!apiKey || apiKey === 'YOUR_OPENAI_API_KEY_HERE') {
         // Return a helpful message instead of crashing
         return "⚠️ Configurazione AI non completata. Per utilizzare l'assistente AI, configura la chiave API nelle impostazioni dell'app.";
       }
@@ -878,7 +884,7 @@ class SmartMemorySystem {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${OPENAI_API_KEY}`
+          'Authorization': `Bearer ${apiKey}`
         },
         body: JSON.stringify({
           model: 'gpt-4o-mini',

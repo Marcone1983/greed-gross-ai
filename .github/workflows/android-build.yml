@@ -85,6 +85,10 @@ jobs:
     - name: Create .env file
       run: echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" > .env
 
+    - name: Create config file with API Key
+      run: |
+        echo "export const OPENAI_API_KEY = '${{ secrets.OPENAI_API_KEY }}';" > src/config/apiKeys.js
+
     - name: Create Keystore
       run: |
         keytool -genkey -v -keystore android/app/release.keystore \
