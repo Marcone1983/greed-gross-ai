@@ -1,0 +1,79 @@
+name: Firebase App Distribution
+
+on:
+  workflow_run:
+    workflows: ["Android Build & Release"]
+    types:
+      - completed
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      release_notes:
+        description: 'Release notes'
+        required: false
+        default: 'New build from main branch'
+
+jobs:
+  deploy:
+    name: Deploy to Firebase App Distribution
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Download APK artifact
+      if: github.event_name == 'workflow_run'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            run_id: ${{ github.event.workflow_run.id }},
+          });
+          const matchArtifact = artifacts.data.artifacts.filter((artifact) => {
+            return artifact.name == "release-apk"
+          })[0];
+          const download = await github.rest.actions.downloadArtifact({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            artifact_id: matchArtifact.id,
+            archive_format: 'zip',
+          });
+          const fs = require('fs');
+          fs.writeFileSync('release-apk.zip', Buffer.from(download.data));
+
+    - name: Unzip APK
+      if: github.event_name == 'workflow_run'
+      run: |
+        unzip release-apk.zip
+        ls -la
+
+    - name: Build APK (for manual trigger)
+      if: github.event_name == 'workflow_dispatch'
+      run: |
+        # This is a simplified version - in production you'd want the full build
+        echo "Manual trigger - ensure APK is built"
+
+    - name: Upload to Firebase App Distribution
+      uses: wzieba/Firebase-Distribution-Github-Action@v1
+      with:
+        appId: ${{ secrets.FIREBASE_APP_ID }}
+        serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        releaseNotes: ${{ github.event.inputs.release_notes || 'Automated build from CI' }}
+        releaseNotesFile: ""
+        testers: ""
+        groups: "internal-testers"
+        file: app-release.apk
+
+    - name: Notify Slack (optional)
+      if: success()
+      uses: 8398a7/action-slack@v3
+      with:
+        status: ${{ job.status }}
+        text: 'New GREED & GROSS build deployed to Firebase App Distribution!'
+        webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}

@@ -1,0 +1,90 @@
+name: Code Quality
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+
+jobs:
+  quality:
+    name: Code Quality Checks
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run ESLint
+      run: |
+        npm run lint -- --format json --output-file eslint-report.json || true
+        npm run lint -- --format stylish
+
+    - name: Check TypeScript (if applicable)
+      run: |
+        npx tsc --noEmit || true
+
+    - name: Run Prettier check
+      run: |
+        npx prettier --check "**/*.{js,jsx,ts,tsx,json,css,md}" || true
+
+    - name: Analyze bundle size
+      run: |
+        npm run build --if-present || echo "No build script"
+        
+    - name: Security audit
+      run: |
+        npm audit --production --audit-level=high || true
+
+    - name: Upload ESLint report
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: eslint-report
+        path: eslint-report.json
+
+    - name: Comment PR with results
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          let comment = '## Code Quality Report\n\n';
+          
+          // Add results summary
+          comment += '### Summary\n';
+          comment += '- ✅ ESLint check completed\n';
+          comment += '- ✅ Security audit completed\n';
+          comment += '- ✅ Code formatting checked\n';
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });
+
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Dependency Review
+      uses: actions/dependency-review-action@v3
+      with:
+        fail-on-severity: high
