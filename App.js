@@ -130,7 +130,6 @@ import * as Localize from 'react-native-localize';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import auth from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
-import storage from '@react-native-firebase/storage';
 import analytics from '@react-native-firebase/analytics';
 import WebView from 'react-native-webview';
 
