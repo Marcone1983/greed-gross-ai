@@ -38,7 +38,10 @@ const Icon = ({ name, size = 24, color = '#000' }) => {
     'search': '🔍',
     'schedule': '⏰',
     'trending-up': '📈',
-    'download': '⬇️'
+    'download': '⬇️',
+    'send': '📤',
+    'menu': '☰',
+    'home': '🏠'
   };
   return <Text style={{ fontSize: size, color }}>{icons[name] || '•'}</Text>;
 };
@@ -76,7 +79,7 @@ const LazyImage = React.memo(({ source, style, fallback, ...props }) => {
     <View style={style}>
       {loading && (
         <View style={[StyleSheet.absoluteFill, { justifyContent: 'center', alignItems: 'center' }]}>
-          <ActivityIndicator size="small" color={theme.colors.primary} />
+          <ActivityIndicator size="small" color="#2ECC40" />
         </View>
       )}
       <Animated.Image
@@ -139,6 +142,7 @@ import { deTranslations, frTranslations } from './src/locales/translations';
 // Import services
 import { analyticsCollector, analyticsEngine, analyticsDashboard } from './src/services/analytics';
 import revenueCatService from './src/services/revenueCat';
+import SplashScreen from './src/components/SplashScreen';
 
 // Create analytics service alias
 const analyticsService = analyticsDashboard;
@@ -868,7 +872,7 @@ class SmartMemorySystem {
   async callCustomAPI(query, context) {
     try {
       // React Native non supporta process.env - usa una costante
-      const OPENAI_API_KEY = 'YOUR_OPENAI_API_KEY_HERE'; // TODO: sostituisci con la tua chiave
+      const OPENAI_API_KEY = process.env.OPENAI_API_KEY || ''; // TODO: sostituisci con la tua chiave
       
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -1182,6 +1186,9 @@ class SmartMemorySystem {
 }
 
 export const memorySystem = new SmartMemorySystem();
+
+// Verifica che memorySystem sia inizializzato
+console.log('MemorySystem inizializzato:', !!memorySystem);
 
 // ===========================
 // 5. ANALYTICS SYSTEM
@@ -1738,7 +1745,7 @@ const ChatScreen = () => {
           <Text style={[styles.typingText, isDarkMode && styles.darkText]}>
             {t('chat.thinking')}
           </Text>
-          <ActivityIndicator size="small" color={theme.colors.primary} />
+          <ActivityIndicator size="small" color="#2ECC40" />
         </View>
       )}
 
@@ -1924,7 +1931,7 @@ const SettingsScreen = ({ navigation }) => {
           <Icon name="arrow-back" size={24} color={isDarkMode ? '#FFF' : theme.colors.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, isDarkMode && styles.darkText]}>{t('settings.title')}</Text>
-        <AdminPanel />
+        {userProfile?.isAdmin && <AdminPanel userId={userProfile.uid} />}
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -2342,9 +2349,9 @@ const AdminPanel = ({ userId }) => {
         patterns,
         opportunities
       ] = await Promise.all([
-        analyticsEngine.getStrainPopularity(),
-        analyticsEngine.getUserPatterns(userId),
-        analyticsEngine.getBreedingOpportunities()
+        analyticsDashboard.getStrainPopularity(),
+        analyticsDashboard.getUserPatterns(userId),
+        analyticsDashboard.getBreedingOpportunities()
       ]);
 
       setAnalyticsData({
@@ -2910,6 +2917,10 @@ const TabNavigator = () => {
 // ===========================
 // 13. SPLASH SCREEN COMPONENT
 // ===========================
+// SplashScreen ora importato in cima al file
+
+// Componente rimosso - ora importato da file esterno
+/*
 const SplashScreen = ({ onAnimationComplete }) => {
   const [progress, setProgress] = useState(0);
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -3020,6 +3031,7 @@ const SplashScreen = ({ onAnimationComplete }) => {
     </View>
   );
 };
+*/
 
 // ===========================
 // 15. MAIN APP COMPONENT
@@ -3565,7 +3577,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.sm,
     marginHorizontal: theme.spacing.xs,
-    borderRadius: theme.borderRadius.medium,
+    borderRadius: theme.borderRadius.md,
     backgroundColor: '#F0F0F0'
   },
   timeRangeButtonActive: {
@@ -3589,7 +3601,7 @@ const styles = StyleSheet.create({
     width: '48%',
     backgroundColor: '#FFF',
     padding: theme.spacing.md,
-    borderRadius: theme.borderRadius.medium,
+    borderRadius: theme.borderRadius.md,
     marginBottom: theme.spacing.md,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -3619,7 +3631,7 @@ const styles = StyleSheet.create({
   chartContainer: {
     backgroundColor: '#FFF',
     padding: theme.spacing.md,
-    borderRadius: theme.borderRadius.medium,
+    borderRadius: theme.borderRadius.md,
     marginBottom: theme.spacing.md
   },
   chartTitle: {
@@ -3656,7 +3668,7 @@ const styles = StyleSheet.create({
   behaviorContainer: {
     backgroundColor: '#FFF',
     padding: theme.spacing.md,
-    borderRadius: theme.borderRadius.medium,
+    borderRadius: theme.borderRadius.md,
     marginBottom: theme.spacing.md
   },
   behaviorRow: {
@@ -3680,7 +3692,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: theme.spacing.md,
-    borderRadius: theme.borderRadius.medium,
+    borderRadius: theme.borderRadius.md,
     marginBottom: theme.spacing.lg
   },
   exportButtonText: {
