@@ -2,6 +2,8 @@ apply plugin: "com.android.application"
 apply plugin: "com.facebook.react"
 apply plugin: 'com.google.gms.google-services'
 
+// Package name is con.ggnextlevel.app to match Firebase
+
 react {
     // Configuration for React Native
 }
@@ -72,4 +74,3 @@ dependencies {
     implementation 'com.google.firebase:firebase-messaging'
     // Dipendenze extra per React Native
 }
-
