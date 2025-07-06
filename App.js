@@ -34,10 +34,92 @@ const Icon = ({ name, size = 24, color = '#000' }) => {
     'local-florist': '🌿',
     'science': '🧪',
     'star': '⭐',
-    'settings': '⚙️'
+    'settings': '⚙️',
+    'search': '🔍',
+    'schedule': '⏰',
+    'trending-up': '📈',
+    'download': '⬇️'
   };
   return <Text style={{ fontSize: size, color }}>{icons[name] || '•'}</Text>;
 };
+
+// Lazy Loading Image Component with Caching
+const LazyImage = React.memo(({ source, style, fallback, ...props }) => {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!loading && !error) {
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true
+      }).start();
+    }
+  }, [loading, error, fadeAnim]);
+
+  const handleLoadEnd = () => {
+    setLoading(false);
+  };
+
+  const handleError = () => {
+    setError(true);
+    setLoading(false);
+  };
+
+  if (error && fallback) {
+    return fallback();
+  }
+
+  return (
+    <View style={style}>
+      {loading && (
+        <View style={[StyleSheet.absoluteFill, { justifyContent: 'center', alignItems: 'center' }]}>
+          <ActivityIndicator size="small" color={theme.colors.primary} />
+        </View>
+      )}
+      <Animated.Image
+        {...props}
+        source={source}
+        style={[style, { opacity: fadeAnim }]}
+        onLoadEnd={handleLoadEnd}
+        onError={handleError}
+      />
+    </View>
+  );
+});
+
+// Performance optimized FlatList with virtualization
+const OptimizedFlatList = React.memo(({ 
+  data, 
+  renderItem, 
+  keyExtractor,
+  onEndReachedThreshold = 0.5,
+  windowSize = 10,
+  initialNumToRender = 10,
+  maxToRenderPerBatch = 5,
+  ...props 
+}) => {
+  return (
+    <FlatList
+      data={data}
+      renderItem={renderItem}
+      keyExtractor={keyExtractor}
+      onEndReachedThreshold={onEndReachedThreshold}
+      windowSize={windowSize}
+      initialNumToRender={initialNumToRender}
+      maxToRenderPerBatch={maxToRenderPerBatch}
+      removeClippedSubviews={true}
+      getItemLayout={(data, index) => ({
+        length: 100, // Adjust based on your item height
+        offset: 100 * index,
+        index
+      })}
+      {...props}
+    />
+  );
+});
 
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -58,8 +140,97 @@ import { deTranslations, frTranslations } from './src/locales/translations';
 import { analyticsCollector, analyticsEngine, analyticsDashboard } from './src/services/analytics';
 import revenueCatService from './src/services/revenueCat';
 
+// Create analytics service alias
+const analyticsService = analyticsDashboard;
+
 // Firebase FieldValue per incrementi atomici
 const { FieldValue } = firestore;
+
+// Simple in-memory cache system
+class CacheManager {
+  constructor() {
+    this.cache = new Map();
+    this.timestamps = new Map();
+  }
+
+  set(key, value, ttl = 300000) { // Default 5 minutes TTL
+    this.cache.set(key, value);
+    this.timestamps.set(key, Date.now() + ttl);
+  }
+
+  get(key) {
+    const timestamp = this.timestamps.get(key);
+    if (!timestamp || Date.now() > timestamp) {
+      this.cache.delete(key);
+      this.timestamps.delete(key);
+      return null;
+    }
+    return this.cache.get(key);
+  }
+
+  clear() {
+    this.cache.clear();
+    this.timestamps.clear();
+  }
+
+  clearExpired() {
+    const now = Date.now();
+    for (const [key, timestamp] of this.timestamps.entries()) {
+      if (now > timestamp) {
+        this.cache.delete(key);
+        this.timestamps.delete(key);
+      }
+    }
+  }
+}
+
+const cacheManager = new CacheManager();
+
+// Performance monitoring hook
+const usePerformanceMonitor = (componentName) => {
+  useEffect(() => {
+    const startTime = Date.now();
+    
+    return () => {
+      const endTime = Date.now();
+      const duration = endTime - startTime;
+      if (duration > 1000) { // Log if component took more than 1s
+        console.warn(`${componentName} took ${duration}ms to render`);
+      }
+    };
+  }, [componentName]);
+};
+
+// Debounce hook for search inputs
+const useDebounce = (value, delay = 300) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+};
+
+// Memoized heavy computations
+const useMemoizedStrainData = (strains, filters) => {
+  return React.useMemo(() => {
+    if (!strains || strains.length === 0) return [];
+    
+    return strains.filter(strain => {
+      if (filters.thc && strain.thc < filters.thc) return false;
+      if (filters.cbd && strain.cbd < filters.cbd) return false;
+      if (filters.type && strain.type !== filters.type) return false;
+      return true;
+    }).sort((a, b) => b.popularity - a.popularity);
+  }, [strains, filters]);
+};
 
 // ===========================
 // 1. THEME CONFIGURATION
@@ -125,6 +296,21 @@ export const theme = {
       fontWeight: 'normal',
       lineHeight: 20
     }
+  }
+};
+
+// Safe theme color accessor with fallback
+const getThemeColor = (colorPath, fallback = '#000') => {
+  try {
+    const paths = colorPath.split('.');
+    let value = theme.colors;
+    for (const path of paths) {
+      value = value[path];
+      if (!value) return fallback;
+    }
+    return value || fallback;
+  } catch {
+    return fallback;
   }
 };
 
@@ -2449,120 +2635,199 @@ const ConversationHistoryScreen = () => {
   );
 };
 
-// ===========================
-// 13. SPLASH SCREEN COMPONENT
-// ===========================
-const SplashScreen = ({ onAnimationComplete }) => {
-  const [progress, setProgress] = useState(0);
-  const [imageError, setImageError] = useState(false);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(0.8)).current;
+const AnalyticsDashboardScreen = () => {
+  const { isDarkMode } = useContext(ThemeContext);
+  const { t } = useTranslation();
+  const [loading, setLoading] = useState(true);
+  const [analytics, setAnalytics] = useState(null);
+  const [selectedTimeRange, setSelectedTimeRange] = useState('week');
+  const [selectedMetric, setSelectedMetric] = useState('popularity');
 
   useEffect(() => {
-    // Fade in animation
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 1000,
-        useNativeDriver: true,
-      }),
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        friction: 8,
-        tension: 40,
-        useNativeDriver: true,
-      }),
-    ]).start();
+    loadAnalytics();
+  }, [selectedTimeRange, selectedMetric]);
 
-    // Progress bar animation
-    const progressInterval = setInterval(() => {
-      setProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(progressInterval);
-          setTimeout(() => {
-            onAnimationComplete();
-          }, 500);
-          return 100;
-        }
-        return prev + 2;
-      });
-    }, 50);
+  const loadAnalytics = async () => {
+    setLoading(true);
+    try {
+      const data = await analyticsService.getDashboardData(selectedTimeRange, selectedMetric);
+      setAnalytics(data);
+    } catch (error) {
+      console.error('Error loading analytics:', error);
+      Alert.alert(t('error'), t('analytics.loadError'));
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    return () => clearInterval(progressInterval);
-  }, [onAnimationComplete, fadeAnim, scaleAnim]);
-
-  return (
-    <View style={splashStyles.container}>
-      <Animated.View
-        style={[
-          splashStyles.logoContainer,
-          {
-            opacity: fadeAnim,
-            transform: [{ scale: scaleAnim }],
-          },
-        ]}
-      >
-        {/* Logo */}
-        <View style={splashStyles.logo}>
-          {!imageError ? (
-            <Image 
-              source={{uri: 'https://i.imgur.com/zkyXF7Y.png'}} 
-              style={splashStyles.logoImage}
-              resizeMode="contain"
-              onError={() => setImageError(true)}
-            />
-          ) : (
-            <View style={[splashStyles.logoImage, {backgroundColor: '#2ECC40', justifyContent: 'center', alignItems: 'center'}]}>
-              <Text style={{fontSize: 60}}>🌿</Text>
-            </View>
-          )}
-          <Text style={splashStyles.titleText}>GREED & GROSS</Text>
-          <Text style={splashStyles.subtitleText}>Cannabis Breeding AI</Text>
-        </View>
-      </Animated.View>
-
-      {/* Loading Bar */}
-      <View style={splashStyles.loadingContainer}>
-        <View style={splashStyles.progressBarBackground}>
-          <View
-            style={[
-              splashStyles.progressBar,
-              { width: `${progress}%` },
-            ]}
-          />
-        </View>
-        <Text style={splashStyles.loadingText}>
-          {progress < 30 ? 'Initializing AI...' : 
-           progress < 60 ? 'Loading strain database...' :
-           progress < 90 ? 'Preparing breeding simulator...' :
-           'Almost ready...'}
-        </Text>
+  const renderMetricCard = (title, value, change, icon) => (
+    <View style={[styles.metricCard, isDarkMode && styles.darkCard]}>
+      <View style={styles.metricHeader}>
+        <Icon name={icon} size={24} color={theme.colors.primary} />
+        <Text style={[styles.metricTitle, isDarkMode && styles.darkText]}>{title}</Text>
       </View>
+      <Text style={[styles.metricValue, isDarkMode && styles.darkText]}>{value}</Text>
+      {change !== null && (
+        <Text style={[
+          styles.metricChange,
+          { color: change >= 0 ? theme.colors.success : theme.colors.error }
+        ]}>
+          {change >= 0 ? '+' : ''}{change}%
+        </Text>
+      )}
+    </View>
+  );
 
-      {/* Effects */}
-      <View style={splashStyles.effects}>
-        {[...Array(5)].map((_, i) => (
-          <Animated.View
-            key={i}
-            style={[
-              splashStyles.smokeEffect,
-              {
-                opacity: fadeAnim,
-                transform: [
-                  {
-                    translateY: fadeAnim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [50, -20],
-                    }),
-                  },
-                ],
-                left: `${20 + i * 15}%`,
-              },
-            ]}
-          />
+  const renderStrainChart = () => {
+    if (!analytics?.topStrains) return null;
+    
+    return (
+      <View style={[styles.chartContainer, isDarkMode && styles.darkCard]}>
+        <Text style={[styles.chartTitle, isDarkMode && styles.darkText]}>
+          {t('analytics.topStrains')}
+        </Text>
+        {analytics.topStrains.map((strain, index) => (
+          <View key={strain.id} style={styles.chartRow}>
+            <Text style={[styles.chartLabel, isDarkMode && styles.darkText]} numberOfLines={1}>
+              {index + 1}. {strain.name}
+            </Text>
+            <View style={styles.chartBarContainer}>
+              <View 
+                style={[
+                  styles.chartBar,
+                  { 
+                    width: `${(strain.score / analytics.topStrains[0].score) * 100}%`,
+                    backgroundColor: theme.colors.primary 
+                  }
+                ]}
+              />
+            </View>
+            <Text style={[styles.chartValue, isDarkMode && styles.darkText]}>
+              {strain.score}
+            </Text>
+          </View>
         ))}
       </View>
-    </View>
+    );
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={[styles.container, isDarkMode && styles.darkContainer]}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={[styles.container, isDarkMode && styles.darkContainer]}>
+      <ScrollView showsVerticalScrollIndicator={false}>
+        <Text style={[styles.title, isDarkMode && styles.darkText]}>
+          {t('analytics.title')}
+        </Text>
+
+        {/* Time Range Selector */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.timeRangeContainer}>
+          {['day', 'week', 'month', 'year'].map(range => (
+            <TouchableOpacity
+              key={range}
+              style={[
+                styles.timeRangeButton,
+                selectedTimeRange === range && styles.timeRangeButtonActive
+              ]}
+              onPress={() => setSelectedTimeRange(range)}
+            >
+              <Text style={[
+                styles.timeRangeText,
+                selectedTimeRange === range && styles.timeRangeTextActive
+              ]}>
+                {t(`analytics.${range}`)}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        {/* Key Metrics */}
+        <View style={styles.metricsGrid}>
+          {renderMetricCard(
+            t('analytics.totalSearches'),
+            analytics?.totalSearches || 0,
+            analytics?.searchesChange || 0,
+            'search'
+          )}
+          {renderMetricCard(
+            t('analytics.uniqueUsers'),
+            analytics?.uniqueUsers || 0,
+            analytics?.usersChange || 0,
+            'psychology'
+          )}
+          {renderMetricCard(
+            t('analytics.avgSessionTime'),
+            analytics?.avgSessionTime || '0m',
+            analytics?.sessionChange || 0,
+            'schedule'
+          )}
+          {renderMetricCard(
+            t('analytics.conversionRate'),
+            `${analytics?.conversionRate || 0}%`,
+            analytics?.conversionChange || 0,
+            'trending-up'
+          )}
+        </View>
+
+        {/* Charts */}
+        {renderStrainChart()}
+
+        {/* User Behavior */}
+        <View style={[styles.behaviorContainer, isDarkMode && styles.darkCard]}>
+          <Text style={[styles.chartTitle, isDarkMode && styles.darkText]}>
+            {t('analytics.userBehavior')}
+          </Text>
+          <View style={styles.behaviorRow}>
+            <Text style={[styles.behaviorLabel, isDarkMode && styles.darkText]}>
+              {t('analytics.avgSearchesPerUser')}
+            </Text>
+            <Text style={[styles.behaviorValue, isDarkMode && styles.darkText]}>
+              {analytics?.avgSearchesPerUser || 0}
+            </Text>
+          </View>
+          <View style={styles.behaviorRow}>
+            <Text style={[styles.behaviorLabel, isDarkMode && styles.darkText]}>
+              {t('analytics.returnRate')}
+            </Text>
+            <Text style={[styles.behaviorValue, isDarkMode && styles.darkText]}>
+              {analytics?.returnRate || 0}%
+            </Text>
+          </View>
+          <View style={styles.behaviorRow}>
+            <Text style={[styles.behaviorLabel, isDarkMode && styles.darkText]}>
+              {t('analytics.premiumConversion')}
+            </Text>
+            <Text style={[styles.behaviorValue, isDarkMode && styles.darkText]}>
+              {analytics?.premiumConversion || 0}%
+            </Text>
+          </View>
+        </View>
+
+        {/* Export Button */}
+        <TouchableOpacity
+          style={[styles.exportButton, { backgroundColor: theme.colors.primary }]}
+          onPress={() => {
+            Alert.alert(
+              t('analytics.export'),
+              t('analytics.exportConfirm'),
+              [
+                { text: t('cancel'), style: 'cancel' },
+                { text: t('export'), onPress: () => analyticsService.exportData(selectedTimeRange) }
+              ]
+            );
+          }}
+        >
+          <Icon name="download" size={20} color="#FFF" />
+          <Text style={styles.exportButtonText}>{t('analytics.exportData')}</Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </SafeAreaView>
   );
 };
 
@@ -2643,6 +2908,120 @@ const TabNavigator = () => {
 };
 
 // ===========================
+// 13. SPLASH SCREEN COMPONENT
+// ===========================
+const SplashScreen = ({ onAnimationComplete }) => {
+  const [progress, setProgress] = useState(0);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.8)).current;
+
+  useEffect(() => {
+    // Fade in animation
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 1000,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        friction: 8,
+        tension: 40,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Progress bar animation
+    const progressInterval = setInterval(() => {
+      setProgress((prev) => {
+        if (prev >= 100) {
+          clearInterval(progressInterval);
+          setTimeout(() => {
+            onAnimationComplete();
+          }, 500);
+          return 100;
+        }
+        return prev + 2;
+      });
+    }, 50);
+
+    return () => clearInterval(progressInterval);
+  }, [onAnimationComplete, fadeAnim, scaleAnim]);
+
+  return (
+    <View style={splashStyles.container}>
+      <Animated.View
+        style={[
+          splashStyles.logoContainer,
+          {
+            opacity: fadeAnim,
+            transform: [{ scale: scaleAnim }],
+          },
+        ]}
+      >
+        {/* Logo */}
+        <View style={splashStyles.logo}>
+          <LazyImage 
+            source={{uri: 'https://i.imgur.com/zkyXF7Y.png'}} 
+            style={splashStyles.logoImage}
+            resizeMode="contain"
+            fallback={() => (
+              <View style={[splashStyles.logoImage, {backgroundColor: '#2ECC40', justifyContent: 'center', alignItems: 'center'}]}>
+                <Text style={{fontSize: 60}}>🌿</Text>
+              </View>
+            )}
+          />
+          <Text style={splashStyles.titleText}>GREED & GROSS</Text>
+          <Text style={splashStyles.subtitleText}>Cannabis Breeding AI</Text>
+        </View>
+      </Animated.View>
+
+      {/* Loading Bar */}
+      <View style={splashStyles.loadingContainer}>
+        <View style={splashStyles.progressBarBackground}>
+          <View
+            style={[
+              splashStyles.progressBar,
+              { width: `${progress}%` },
+            ]}
+          />
+        </View>
+        <Text style={splashStyles.loadingText}>
+          {progress < 30 ? 'Initializing AI...' : 
+           progress < 60 ? 'Loading strain database...' :
+           progress < 90 ? 'Preparing breeding simulator...' :
+           'Almost ready...'}
+        </Text>
+      </View>
+
+      {/* Effects */}
+      <View style={splashStyles.effects}>
+        {[...Array(5)].map((_, i) => (
+          <Animated.View
+            key={i}
+            style={[
+              splashStyles.smokeEffect,
+              {
+                opacity: fadeAnim,
+                transform: [
+                  {
+                    translateY: fadeAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [50, -20],
+                    }),
+                  },
+                ],
+                left: `${20 + i * 15}%`,
+              },
+            ]}
+          />
+        ))}
+      </View>
+    </View>
+  );
+};
+
+// ===========================
 // 15. MAIN APP COMPONENT
 // ===========================
 const App = () => {
@@ -2673,6 +3052,7 @@ const App = () => {
             <Stack.Screen name="Main" component={TabNavigator} />
             <Stack.Screen name="Subscription" component={SubscriptionScreen} />
             <Stack.Screen name="ConversationHistory" component={ConversationHistoryScreen} />
+            <Stack.Screen name="AnalyticsDashboard" component={AnalyticsDashboardScreen} />
           </Stack.Navigator>
         </NavigationContainer>
       </UserProvider>
@@ -3175,6 +3555,139 @@ const styles = StyleSheet.create({
   progressFill: {
     height: '100%',
     backgroundColor: theme.colors.primary
+  },
+
+  // Analytics Dashboard Styles
+  timeRangeContainer: {
+    paddingVertical: theme.spacing.md
+  },
+  timeRangeButton: {
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    marginHorizontal: theme.spacing.xs,
+    borderRadius: theme.borderRadius.medium,
+    backgroundColor: '#F0F0F0'
+  },
+  timeRangeButtonActive: {
+    backgroundColor: theme.colors.primary
+  },
+  timeRangeText: {
+    fontSize: 14,
+    color: '#666'
+  },
+  timeRangeTextActive: {
+    color: '#FFF',
+    fontWeight: 'bold'
+  },
+  metricsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: theme.spacing.md
+  },
+  metricCard: {
+    width: '48%',
+    backgroundColor: '#FFF',
+    padding: theme.spacing.md,
+    borderRadius: theme.borderRadius.medium,
+    marginBottom: theme.spacing.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3
+  },
+  metricHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: theme.spacing.sm
+  },
+  metricTitle: {
+    fontSize: 12,
+    color: '#666',
+    marginLeft: theme.spacing.xs
+  },
+  metricValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#000'
+  },
+  metricChange: {
+    fontSize: 12,
+    marginTop: theme.spacing.xs
+  },
+  chartContainer: {
+    backgroundColor: '#FFF',
+    padding: theme.spacing.md,
+    borderRadius: theme.borderRadius.medium,
+    marginBottom: theme.spacing.md
+  },
+  chartTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: theme.spacing.md
+  },
+  chartRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: theme.spacing.sm
+  },
+  chartLabel: {
+    flex: 0.3,
+    fontSize: 14
+  },
+  chartBarContainer: {
+    flex: 0.5,
+    height: 20,
+    backgroundColor: '#F0F0F0',
+    borderRadius: 10,
+    overflow: 'hidden',
+    marginHorizontal: theme.spacing.sm
+  },
+  chartBar: {
+    height: '100%',
+    borderRadius: 10
+  },
+  chartValue: {
+    flex: 0.2,
+    fontSize: 14,
+    textAlign: 'right'
+  },
+  behaviorContainer: {
+    backgroundColor: '#FFF',
+    padding: theme.spacing.md,
+    borderRadius: theme.borderRadius.medium,
+    marginBottom: theme.spacing.md
+  },
+  behaviorRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: theme.spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0'
+  },
+  behaviorLabel: {
+    fontSize: 14,
+    color: '#666'
+  },
+  behaviorValue: {
+    fontSize: 14,
+    fontWeight: 'bold'
+  },
+  exportButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: theme.spacing.md,
+    borderRadius: theme.borderRadius.medium,
+    marginBottom: theme.spacing.lg
+  },
+  exportButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginLeft: theme.spacing.sm
   }
 });
 

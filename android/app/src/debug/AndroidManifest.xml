@@ -8,5 +8,6 @@
         android:usesCleartextTraffic="true"
         android:networkSecurityConfig="@xml/react_native_config"
         tools:targetApi="28"
-        tools:ignore="GoogleAppIndexingWarning" />
+        tools:ignore="GoogleAppIndexingWarning">
+    </application>
 </manifest>
