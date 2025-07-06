@@ -2176,25 +2176,41 @@ const DocumentViewer = ({ documentType, language, onClose }) => {
         }
       }
 
-      const docPath = `legal/${language}/${documentType}.html`;
-      const url = await storage().ref(docPath).getDownloadURL();
-      const response = await fetch(url);
-      const html = await response.text();
+      // Load from local assets in APK
+      const docPath = `file:///android_asset/legal/${language}/${documentType}.html`;
+      
+      try {
+        const response = await fetch(docPath);
+        const html = await response.text();
+        
+        await AsyncStorage.setItem(cacheKey, JSON.stringify({
+          html,
+          timestamp: Date.now()
+        }));
 
-      await AsyncStorage.setItem(cacheKey, JSON.stringify({
-        html,
-        timestamp: Date.now()
-      }));
+        setDocumentHtml(html);
+      } catch (localErr) {
+        // If local file not found, try Firebase as fallback
+        const firebasePath = `legal/${language}/${documentType}.html`;
+        const url = await storage().ref(firebasePath).getDownloadURL();
+        const response = await fetch(url);
+        const html = await response.text();
 
-      setDocumentHtml(html);
+        await AsyncStorage.setItem(cacheKey, JSON.stringify({
+          html,
+          timestamp: Date.now()
+        }));
+
+        setDocumentHtml(html);
+      }
     } catch (err) {
       console.error('Error loading document:', err);
       
       if (language !== 'en') {
         try {
-          const fallbackPath = `legal/en/${documentType}.html`;
-          const url = await storage().ref(fallbackPath).getDownloadURL();
-          const response = await fetch(url);
+          // Try English fallback from local assets
+          const fallbackPath = `file:///android_asset/legal/en/${documentType}.html`;
+          const response = await fetch(fallbackPath);
           const html = await response.text();
           setDocumentHtml(html);
         } catch (fallbackErr) {
