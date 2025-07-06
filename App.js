@@ -3796,6 +3796,7 @@ class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
     this.state = { hasError: false, error: null };
+    console.log('ErrorBoundary inizializzato');
   }
 
   static getDerivedStateFromError(error) {
