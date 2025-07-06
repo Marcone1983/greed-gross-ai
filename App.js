@@ -866,8 +866,13 @@ class SmartMemorySystem {
 
   async callCustomAPI(query, context) {
     try {
-      // React Native non supporta process.env - usa una costante
-      const OPENAI_API_KEY = 'YOUR_OPENAI_API_KEY_HERE'; // TODO: sostituisci con la tua chiave
+      // Try to get API key from AsyncStorage first
+      let OPENAI_API_KEY = await AsyncStorage.getItem('@openai_api_key');
+      
+      if (!OPENAI_API_KEY || OPENAI_API_KEY === 'YOUR_OPENAI_API_KEY_HERE') {
+        // Return a helpful message instead of crashing
+        return "⚠️ Configurazione AI non completata. Per utilizzare l'assistente AI, configura la chiave API nelle impostazioni dell'app.";
+      }
       
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
