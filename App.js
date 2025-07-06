@@ -138,8 +138,6 @@ import { deTranslations, frTranslations } from './src/locales/translations';
 // Import services
 import { analyticsCollector, analyticsEngine, analyticsDashboard } from './src/services/analytics';
 import revenueCatService from './src/services/revenueCat';
-// Import config
-import { OPENAI_API_KEY } from './src/config/apiKeys';
 
 // Create analytics service alias
 const analyticsService = analyticsDashboard;
@@ -868,11 +866,24 @@ class SmartMemorySystem {
 
   async callCustomAPI(query, context) {
     try {
-      // Try to get API key from AsyncStorage first, fallback to imported config
+      // Try to get API key from AsyncStorage first
       let apiKey = await AsyncStorage.getItem('@openai_api_key');
       
+      // If not in AsyncStorage, try Firebase Remote Config
       if (!apiKey) {
-        apiKey = OPENAI_API_KEY;
+        try {
+          // Get from Firestore settings collection
+          const settingsDoc = await firestore()
+            .collection('settings')
+            .doc('api_keys')
+            .get();
+          
+          if (settingsDoc.exists) {
+            apiKey = settingsDoc.data().openai_api_key;
+          }
+        } catch (error) {
+          console.log('Error fetching API key from Firebase:', error);
+        }
       }
       
       if (!apiKey) {

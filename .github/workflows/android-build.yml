@@ -84,10 +84,10 @@ jobs:
 
     - name: Create .env file
       run: echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" > .env
-
-    - name: Create config file with API Key
-      run: |
-        echo "export const OPENAI_API_KEY = '${{ secrets.OPENAI_API_KEY }}';" > src/config/apiKeys.js
+    
+    # Note: The API key is also stored in Firebase Firestore
+    # Path: settings/api_keys/openai_api_key
+    # This is retrieved by the app at runtime
 
     - name: Create Keystore
       run: |
