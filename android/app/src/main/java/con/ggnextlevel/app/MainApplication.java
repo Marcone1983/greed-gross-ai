@@ -1,4 +1,4 @@
-package com.ggnextlevel.app;
+package con.ggnextlevel.app;
 
 import android.app.Application;
 import androidx.multidex.MultiDexApplication;
