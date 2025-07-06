@@ -39,7 +39,41 @@ jobs:
       run: chmod +x android/gradlew
 
     - name: Create google-services.json
-      run: echo '${{ secrets.GOOGLE_SERVICES_JSON }}' | base64 -d > android/app/google-services.json
+      run: |
+        if [ -n "${{ secrets.GOOGLE_SERVICES_JSON }}" ]; then
+          echo '${{ secrets.GOOGLE_SERVICES_JSON }}' | base64 -d > android/app/google-services.json
+        else
+          echo '{
+            "project_info": {
+              "project_number": "123456789",
+              "firebase_url": "https://greedgross.firebaseio.com",
+              "project_id": "greedgross",
+              "storage_bucket": "greedgross.appspot.com"
+            },
+            "client": [
+              {
+                "client_info": {
+                  "mobilesdk_app_id": "1:123456789:android:abc123",
+                  "android_client_info": {
+                    "package_name": "com.ggnextlevel.app"
+                  }
+                },
+                "oauth_client": [],
+                "api_key": [
+                  {
+                    "current_key": "AIzaSyDummy-Key"
+                  }
+                ],
+                "services": {
+                  "appinvite_service": {
+                    "other_platform_oauth_client": []
+                  }
+                }
+              }
+            ],
+            "configuration_version": "1"
+          }' > android/app/google-services.json
+        fi
 
     - name: Create .env file
       run: echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" > .env
