@@ -35,6 +35,13 @@ jobs:
         npm cache clean --force
         npm install
 
+    - name: Patch react-native-purchases manifest
+      run: |
+        # Remove package attribute from react-native-purchases AndroidManifest.xml
+        if [ -f "node_modules/react-native-purchases/android/src/main/AndroidManifest.xml" ]; then
+          sed -i 's/package="com.revenuecat.purchases.react"//g' node_modules/react-native-purchases/android/src/main/AndroidManifest.xml
+        fi
+
     - name: Make gradlew executable
       run: chmod +x android/gradlew
 
