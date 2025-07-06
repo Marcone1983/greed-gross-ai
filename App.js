@@ -2176,9 +2176,9 @@ const DocumentViewer = ({ documentType, language, onClose }) => {
         }
       }
 
-      const docPath = `legal/${language}/${documentType}.html`;
-      const url = await storage().ref(docPath).getDownloadURL();
-      const response = await fetch(url);
+      // Load from GitHub raw content (free hosting)
+      const docPath = `https://raw.githubusercontent.com/Marcone1983/greed-gross-ai/main/legal/${language}/${documentType}.html`;
+      const response = await fetch(docPath);
       const html = await response.text();
 
       await AsyncStorage.setItem(cacheKey, JSON.stringify({
@@ -2192,9 +2192,9 @@ const DocumentViewer = ({ documentType, language, onClose }) => {
       
       if (language !== 'en') {
         try {
-          const fallbackPath = `legal/en/${documentType}.html`;
-          const url = await storage().ref(fallbackPath).getDownloadURL();
-          const response = await fetch(url);
+          // Fallback to English from GitHub
+          const fallbackPath = `https://raw.githubusercontent.com/Marcone1983/greed-gross-ai/main/legal/en/${documentType}.html`;
+          const response = await fetch(fallbackPath);
           const html = await response.text();
           setDocumentHtml(html);
         } catch (fallbackErr) {
